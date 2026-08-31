@@ -1,0 +1,14 @@
+name = "vehicle-build-platform-api"
+main = "worker/index.js"
+compatibility_date = "2026-08-31"
+
+# After deploy, your API will be live at:
+#   https://vehicle-build-platform-api.<your-subdomain>.workers.dev
+#
+# To deploy: wrangler deploy
+# To test locally against the real Workers runtime: wrangler dev
+#
+# If you later want a real image-gen provider key for photo-render.js:
+#   wrangler secret put OPENAI_API_KEY
+# then bind it via `env.OPENAI_API_KEY` inside the (currently commented out)
+# openAiProvider function in worker/photo-render.js.

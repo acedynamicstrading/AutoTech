@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Build Configurator — Mazda 3 · Aggressive Weekend Toy</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg: #14171a;
+    --panel: #1c2024;
+    --panel-2: #22262b;
+    --line: #2c3136;
+    --text: #e8e6e1;
+    --text-dim: #8b9198;
+    --amber: #f2b705;
+    --amber-dim: #7a5f08;
+    --teal: #4fd1c5;
+    --red: #e5484d;
+    --red-dim: #4a1f21;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:
+      linear-gradient(180deg, rgba(242,183,5,0.04), transparent 200px),
+      var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+  header{
+    padding: 22px 18px 16px;
+    border-bottom: 1px solid var(--line);
+    background: repeating-linear-gradient(135deg, transparent, transparent 18px, rgba(242,183,5,0.025) 18px, rgba(242,183,5,0.025) 20px);
+  }
+  .eyebrow{
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--amber); font-weight: 600; margin-bottom: 6px;
+  }
+  h1{
+    font-family: 'Oswald', sans-serif;
+    font-size: 26px; font-weight: 700; letter-spacing: 0.01em;
+    text-transform: uppercase;
+  }
+  .subtitle{ color: var(--text-dim); font-size: 12px; margin-top: 4px; }
+
+  .mode-row{
+    display:flex; gap:8px; margin-top:14px; flex-wrap: wrap;
+  }
+  .mode-btn{
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; padding: 7px 12px; border-radius: 3px;
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--text-dim);
+    cursor: pointer; letter-spacing: 0.04em;
+  }
+  .mode-btn.active{
+    background: var(--amber); color: #14171a; border-color: var(--amber); font-weight: 700;
+  }
+
+  .stats-strip{
+    display:flex; gap: 14px; padding: 14px 18px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  .stat{ min-width: 90px; }
+  .stat-label{ font-size: 9px; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+  .stat-value{ font-family:'Oswald',sans-serif; font-size: 20px; font-weight: 600; margin-top: 2px; }
+  .stat-value.amber{ color: var(--amber); }
+  .stat-value.teal{ color: var(--teal); }
+  .stat-value.red{ color: var(--red); }
+
+  .layout{ display:flex; flex-direction: column; }
+  @media(min-width: 860px){
+    .layout{ flex-direction: row; align-items: flex-start; }
+    .catalog{ flex: 1; min-width: 0; }
+    .sidebar{ width: 320px; flex-shrink: 0; border-left: 1px solid var(--line); }
+  }
+
+  .cat-group{ border-bottom: 1px solid var(--line); }
+  .cat-header{
+    padding: 12px 18px; display:flex; justify-content: space-between; align-items:center;
+    cursor: pointer; background: var(--panel);
+  }
+  .cat-header:hover{ background: var(--panel-2); }
+  .cat-name{ font-family:'Oswald',sans-serif; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .cat-count{ font-size: 10px; color: var(--text-dim); }
+  .cat-body{ display:none; padding: 4px 18px 14px; }
+  .cat-body.open{ display:block; }
+
+  .part{
+    display:flex; justify-content: space-between; align-items: flex-start;
+    gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--line);
+  }
+  .part:last-child{ border-bottom: none; }
+  .part-info{ flex: 1; }
+  .part-name{ font-size: 13px; font-weight: 600; }
+  .part-meta{ font-size: 10px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
+  .badge{
+    display:inline-block; font-size: 9px; padding: 1px 6px; border-radius: 2px;
+    margin-right: 5px; letter-spacing: 0.03em; text-transform: uppercase; font-weight: 600;
+  }
+  .badge.track{ background: var(--red-dim); color: #ff8a8f; }
+  .badge.conf-high{ background: rgba(79,209,197,0.12); color: var(--teal); }
+  .badge.conf-med{ background: rgba(242,183,5,0.12); color: var(--amber); }
+  .badge.conf-low{ background: rgba(229,72,77,0.12); color: var(--red); }
+
+  .add-btn{
+    font-family:'JetBrains Mono',monospace; font-size: 11px; font-weight: 700;
+    padding: 7px 11px; border-radius: 3px; border: 1px solid var(--amber);
+    background: transparent; color: var(--amber); cursor: pointer; white-space: nowrap;
+  }
+  .add-btn.added{ background: var(--amber); color: #14171a; }
+  .add-btn:disabled{ opacity: 0.35; cursor: not-allowed; border-color: var(--line); color: var(--text-dim); }
+
+  .sidebar-inner{ padding: 16px; position: sticky; top: 0; }
+  .sidebar h2{
+    font-family:'Oswald',sans-serif; font-size: 15px; text-transform: uppercase;
+    letter-spacing: 0.04em; margin-bottom: 10px; color: var(--amber);
+  }
+  .build-item{
+    display:flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 12px;
+  }
+  .build-item button{
+    background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px;
+  }
+  .empty-note{ color: var(--text-dim); font-size: 11px; line-height: 1.6; padding: 10px 0; }
+
+  .alert{
+    margin-top: 12px; padding: 10px 12px; border-radius: 4px; font-size: 11px; line-height: 1.6;
+  }
+  .alert.warn{ background: var(--red-dim); border: 1px solid #6b2a2d; color: #ffb3b6; }
+  .alert.info{ background: rgba(79,209,197,0.08); border: 1px solid #2a5a55; color: var(--teal); }
+  .alert-title{ font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .alert button{
+    margin-top: 6px; font-size: 10px; font-weight: 700; padding: 5px 9px; border-radius: 3px;
+    border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer;
+  }
+
+  .connector-note{
+    font-size: 9px; color: var(--text-dim); margin-top: 2px;
+  }
+  .connector-note b{ color: var(--amber); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Toy / Track / Show — No Street-Legal Filter <span id="apiStatus" style="color:var(--text-dim);">· checking API…</span></div>
+  <h1>Build Configurator</h1>
+  <div class="subtitle" id="vehicleSubtitle">2019 Mazda 3 Hatchback · Skyactiv-G 2.0 · Stock baseline · "Aggressive Weekend Toy"</div>
+  <div class="mode-row" style="margin-bottom:8px;">
+    <input id="vinInput" placeholder="Enter VIN (try 3MZBPACL5KM123456)" style="flex:1; min-width:180px; background:var(--panel-2); border:1px solid var(--line); color:var(--text); padding:7px 10px; border-radius:3px; font-family:'JetBrains Mono',monospace; font-size:11px;">
+    <button class="mode-btn" id="decodeVinBtn">Decode VIN</button>
+    <button class="mode-btn" id="verifyServerBtn">Verify Build via Server</button>
+  </div>
+  <div id="serverVerifyResult" style="display:none; margin-top:8px; padding:10px; background:var(--panel-2); border-radius:4px; font-size:11px;"></div>
+  <div class="mode-row">
+    <button class="mode-btn active" data-mode="all">All Parts</button>
+    <button class="mode-btn" data-mode="visual">Visual Only</button>
+    <button class="mode-btn" data-mode="performance">Performance Only</button>
+  </div>
+</header>
+
+<div class="stats-strip">
+  <div class="stat"><div class="stat-label">Power (whp)</div><div class="stat-value amber" id="statPower">182</div></div>
+  <div class="stat"><div class="stat-label">Est. Cost</div><div class="stat-value" id="statCost">$0</div></div>
+  <div class="stat"><div class="stat-label">Fitment Conf.</div><div class="stat-value teal" id="statConf">—</div></div>
+  <div class="stat"><div class="stat-label">Open Requirements</div><div class="stat-value red" id="statReqs">0</div></div>
+</div>
+
+<div class="layout">
+  <div class="catalog" id="catalog"></div>
+  <div class="sidebar">
+    <div class="sidebar-inner">
+      <h2>Your Build</h2>
+      <div id="buildList"></div>
+      <div id="alerts"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- DATA MODEL ----------
+// Each part: id, category, sub, name, cost:[min,max], powerGain:[min,max] (0 if none),
+// requires: [ids] (must also be in build), conflicts: [ids] (cannot coexist),
+// trackOnly: bool, confidence: 'high'|'med'|'low', note: fitment/context note
+
+// ---------- API INTEGRATION ----------
+// Point this at your deployed Worker once you've run `wrangler deploy`.
+// Until then (or if the Worker is unreachable) the page falls back to the
+// embedded PARTS array below and works fully offline — this is deliberate,
+// not a bug: a build configurator shouldn't go dark if the API hiccups.
+// For local testing before deploying: run `node worker/local-dev-server.js`
+// and set this to 'http://localhost:8787' instead.
+const API_BASE = 'https://vehicle-build-platform-api.YOUR-SUBDOMAIN.workers.dev';
+
+let apiReachable = false;
+
+async function checkApiHealth() {
+  const statusEl = document.getElementById('apiStatus');
+  try {
+    const res = await fetch(`${API_BASE}/api/health`);
+    const data = await res.json();
+    apiReachable = res.ok && data.ok;
+    statusEl.textContent = apiReachable ? '· API connected' : '· API unreachable (offline mode)';
+    statusEl.style.color = apiReachable ? 'var(--teal)' : 'var(--red)';
+  } catch (err) {
+    apiReachable = false;
+    statusEl.textContent = '· API unreachable (offline mode — set API_BASE after deploying)';
+    statusEl.style.color = 'var(--red)';
+  }
+}
+
+document.getElementById('decodeVinBtn').onclick = async () => {
+  const vin = document.getElementById('vinInput').value.trim();
+  if (!vin) return;
+  const sub = document.getElementById('vehicleSubtitle');
+  if (!apiReachable) {
+    sub.textContent = 'VIN decode requires the API — currently unreachable. Deploy the Worker and update API_BASE.';
+    return;
+  }
+  sub.textContent = 'Decoding…';
+  try {
+    const res = await fetch(`${API_BASE}/api/vin/decode`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vin }),
+    });
+    const data = await res.json();
+    if (!res.ok) { sub.textContent = `VIN decode failed: ${data.error}`; return; }
+    sub.textContent = `${data.modelYear} ${data.make} ${data.model} · ${data.engine || ''} · Region: ${data.region} (source: ${data.source})`;
+  } catch (err) {
+    sub.textContent = `VIN decode error: ${err.message}`;
+  }
+};
+
+document.getElementById('verifyServerBtn').onclick = async () => {
+  const resultEl = document.getElementById('serverVerifyResult');
+  resultEl.style.display = 'block';
+  if (!apiReachable) {
+    resultEl.textContent = 'API unreachable — showing client-side calculation only (see stats strip above). Deploy the Worker to cross-check.';
+    return;
+  }
+  resultEl.textContent = 'Checking with server…';
+  try {
+    const res = await fetch(`${API_BASE}/api/build/evaluate`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ partIds: Array.from(build), basePowerWhp: BASE_POWER }),
+    });
+    const data = await res.json();
+    resultEl.innerHTML = `<b>Server says:</b> isValid=${data.isValid}, power ${data.estimate.totalPower.min}-${data.estimate.totalPower.max} whp, cost $${data.estimate.cost.min.toLocaleString()}-$${data.estimate.cost.max.toLocaleString()}, confidence: ${data.estimate.confidence.label}`;
+  } catch (err) {
+    resultEl.textContent = `Server verify error: ${err.message}`;
+  }
+};
+
+checkApiHealth();
+
+const BASE_POWER = 182; // stock Mazda 3 Skyactiv-G 2.0, whp approx
+
+const PARTS = [
+  // --- VISUAL / STYLE ---
+  { id:'widebody', cat:'Visual', sub:'Body Kits & Aero', name:'Aggressive Widebody Kit', cost:[2800,5200], powerGain:[0,0],
+    requires:[], conflicts:['stock_fenders_note'], trackOnly:true, confidence:'med',
+    note:'Requires fender cutting/fabrication on BP-chassis hatch — not a bolt-on.' },
+  { id:'front_splitter', cat:'Visual', sub:'Body Kits & Aero', name:'Front Splitter', cost:[350,700], powerGain:[0,0],
+    requires:[], conflicts:[], trackOnly:true, confidence:'high', note:'Bolts to most aftermarket or stock front bumpers.' },
+  { id:'rear_diffuser', cat:'Visual', sub:'Body Kits & Aero', name:'Rear Diffuser', cost:[300,650], powerGain:[0,0],
+    requires:[], conflicts:[], trackOnly:true, confidence:'high', note:'Fits stock rear bumper, most aftermarket options.' },
+  { id:'gt_wing', cat:'Visual', sub:'Wings & Spoilers', name:'Adjustable GT Wing', cost:[600,1400], powerGain:[0,0],
+    requires:[], conflicts:['duckbill'], trackOnly:true, confidence:'med', note:'May require trunk drilling/reinforcement — hatch mounting differs from sedan.' },
+  { id:'duckbill', cat:'Visual', sub:'Wings & Spoilers', name:'Duckbill Spoiler', cost:[150,350], powerGain:[0,0],
+    requires:[], conflicts:['gt_wing'], trackOnly:false, confidence:'high', note:'Direct bolt-on, low downforce.' },
+  { id:'wheels_18', cat:'Visual', sub:'Wheels & Tires', name:'18×9.5 / 18×10.5 Forged Wheels (square)', cost:[2400,4800], powerGain:[0,0],
+    requires:[], conflicts:[], trackOnly:true, confidence:'med', note:'Rear fitment on stock-width fenders requires the widebody kit or fender rolling.' },
+  { id:'wrap', cat:'Visual', sub:'Wrap / Paint / Livery', name:'Full Satin/Gloss Wrap + Livery', cost:[2500,4500], powerGain:[0,0],
+    requires:[], conflicts:[], trackOnly:false, confidence:'high', note:'No fitment dependency — cosmetic only.' },
+  { id:'underglow', cat:'Visual', sub:'Lighting', name:'Underglow + Darkened Lighting', cost:[300,900], powerGain:[0,0],
+    requires:[], conflicts:[], trackOnly:true, confidence:'high', note:'Underglow is off-road/show-only in most jurisdictions.' },
+  { id:'bucket_seats', cat:'Visual', sub:'Interior', name:'Bucket Seats + 4-Point Harnesses', cost:[1200,2600], powerGain:[0,0],
+    requires:['half_cage'], conflicts:[], trackOnly:true, confidence:'high', note:'Harness bar or cage mounting point required for correct harness angle.' },
+  { id:'half_cage', cat:'Visual', sub:'Interior', name:'Half Cage', cost:[1500,3200], powerGain:[0,0],
+    requires:[], conflicts:[], trackOnly:true, confidence:'med', note:'Chassis-specific mounting kit needed — confirm hatch vs sedan chassis points.' },
+
+  // --- PERFORMANCE ---
+  { id:'cai', cat:'Performance', sub:'Intake & Exhaust', name:'Cold Air Intake', cost:[250,450], powerGain:[5,10],
+    requires:[], conflicts:[], trackOnly:false, confidence:'high', note:'Minimal gain in isolation on stock turbo/NA setup.' },
+  { id:'catback', cat:'Performance', sub:'Intake & Exhaust', name:'Full Turbo-Back Exhaust', cost:[900,1800], powerGain:[10,20],
+    requires:[], conflicts:[], trackOnly:true, confidence:'high', note:'Loud — track/show only in most areas.' },
+  { id:'intercooler', cat:'Performance', sub:'Cooling', name:'Upgraded Intercooler', cost:[500,1100], powerGain:[5,15],
+    requires:[], conflicts:[], trackOnly:false, confidence:'high', note:'Foundation mod, supports later boost increases.' },
+  { id:'turbo_kit', cat:'Performance', sub:'Engine & Forced Induction', name:'Larger Turbo Kit (hybrid/upgrade)', cost:[3500,7000], powerGain:[120,180],
+    requires:['fuel_system','ecu_tune','intercooler','clutch_upgrade'], conflicts:[], trackOnly:true, confidence:'med',
+    note:'Mazda 3 aftermarket turbo support is thinner than WRX/GTI-class platforms — expect semi-custom fabrication.' },
+  { id:'fuel_system', cat:'Performance', sub:'Fuel & Ignition', name:'Upgraded Fuel Pump + Injectors', cost:[600,1300], powerGain:[0,0],
+    requires:[], conflicts:[], trackOnly:false, confidence:'high', note:'Required supporting mod once boost/power target exceeds stock fuel delivery.' },
+  { id:'ecu_tune', cat:'Performance', sub:'ECU / Electronics', name:'Standalone ECU / Tune', cost:[1200,2800], powerGain:[15,25],
+    requires:[], conflicts:[], trackOnly:false, confidence:'med', note:'Mazda Skyactiv tuning support is more limited than Subaru/VW ecosystems — verify tuner availability first.' },
+  { id:'clutch_upgrade', cat:'Performance', sub:'Drivetrain', name:'Stronger Clutch', cost:[700,1500], powerGain:[0,0],
+    requires:[], conflicts:[], trackOnly:false, confidence:'high', note:'Required once torque exceeds stock clutch rating.' },
+  { id:'nitrous', cat:'Performance', sub:'Engine & Forced Induction', name:'Nitrous Kit', cost:[900,1800], powerGain:[40,75],
+    requires:['fuel_system'], conflicts:[], trackOnly:true, confidence:'low', note:'Low real-world documentation on this platform — treat gain range as low-confidence.' },
+  { id:'coilovers', cat:'Performance', sub:'Suspension', name:'Fully Adjustable Coilovers', cost:[1200,2800], powerGain:[0,0],
+    requires:[], conflicts:[], trackOnly:false, confidence:'high', note:'Well-supported on this platform.' },
+  { id:'sway_bars', cat:'Performance', sub:'Suspension', name:'Sway Bars + Camber Arms', cost:[500,1100], powerGain:[0,0],
+    requires:[], conflicts:[], trackOnly:false, confidence:'high', note:'Direct bolt-on across generations.' },
+  { id:'bbk', cat:'Performance', sub:'Brakes', name:'Big Brake Kit (F+R)', cost:[2000,4200], powerGain:[0,0],
+    requires:[], conflicts:[], trackOnly:false, confidence:'med', note:'Confirm caliper clearance against the specific wheel size chosen.' },
+];
+
+const CATEGORY_ORDER = [
+  { cat:'Visual', subs:['Body Kits & Aero','Wings & Spoilers','Wheels & Tires','Wrap / Paint / Livery','Lighting','Interior'] },
+  { cat:'Performance', subs:['Engine & Forced Induction','Intake & Exhaust','Fuel & Ignition','ECU / Electronics','Drivetrain','Suspension','Brakes','Cooling'] },
+];
+
+// ---------- STATE ----------
+let build = new Set();
+let mode = 'all';
+
+// ---------- RENDER CATALOG ----------
+function renderCatalog(){
+  const el = document.getElementById('catalog');
+  el.innerHTML = '';
+  CATEGORY_ORDER.forEach(group => {
+    if(mode !== 'all' && mode.toLowerCase() !== group.cat.toLowerCase()) return;
+    group.subs.forEach(sub => {
+      const parts = PARTS.filter(p => p.cat === group.cat && p.sub === sub);
+      if(parts.length === 0) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'cat-group';
+      const header = document.createElement('div');
+      header.className = 'cat-header';
+      header.innerHTML = `<span class="cat-name">${sub}</span><span class="cat-count">${parts.length} items ▾</span>`;
+      const body = document.createElement('div');
+      body.className = 'cat-body';
+      header.onclick = () => body.classList.toggle('open');
+
+      parts.forEach(p => {
+        const row = document.createElement('div');
+        row.className = 'part';
+        const added = build.has(p.id);
+        const confClass = p.confidence === 'high' ? 'conf-high' : p.confidence === 'med' ? 'conf-med' : 'conf-low';
+        const reqNames = p.requires.map(id => PARTS.find(x=>x.id===id)?.name).filter(Boolean);
+        row.innerHTML = `
+          <div class="part-info">
+            <div class="part-name">${p.name}</div>
+            <div class="part-meta">
+              ${p.trackOnly ? '<span class="badge track">Track/Show Only</span>' : ''}
+              <span class="badge ${confClass}">Fitment: ${p.confidence}</span>
+              $${p.cost[0].toLocaleString()}–$${p.cost[1].toLocaleString()}
+              ${p.powerGain[1] > 0 ? ` · +${p.powerGain[0]}–${p.powerGain[1]} whp` : ''}
+            </div>
+            <div class="connector-note">${p.note}</div>
+            ${reqNames.length ? `<div class="connector-note">Requires: <b>${reqNames.join(', ')}</b></div>` : ''}
+          </div>
+          <button class="add-btn ${added?'added':''}" data-id="${p.id}">${added ? '✓ Added' : 'Add'}</button>
+        `;
+        body.appendChild(row);
+      });
+      wrap.appendChild(header);
+      wrap.appendChild(body);
+      el.appendChild(wrap);
+    });
+  });
+
+  el.querySelectorAll('.add-btn').forEach(btn => {
+    btn.onclick = () => toggleatn(btn.dataset.id);
+  });
+}
+
+function toggleatn(id){
+  if(build.has(id)) build.delete(id);
+  else build.add(id);
+  renderAll();
+}
+
+// ---------- DEPENDENCY ENGINE ----------
+function computeAlerts(){
+  const missing = [];
+  const conflicts = [];
+  build.forEach(id => {
+    const part = PARTS.find(p=>p.id===id);
+    part.requires.forEach(reqId => {
+      if(!build.has(reqId)){
+        const reqPart = PARTS.find(p=>p.id===reqId);
+        missing.push({ for: part, needs: reqPart });
+      }
+    });
+    part.conflicts.forEach(cId => {
+      if(build.has(cId)){
+        const cPart = PARTS.find(p=>p.id===cId);
+        conflicts.push({ a: part, b: cPart });
+      }
+    });
+  });
+  return { missing, conflicts };
+}
+
+function renderSidebar(){
+  const list = document.getElementById('buildList');
+  const alertsEl = document.getElementById('alerts');
+  list.innerHTML = '';
+  if(build.size === 0){
+    list.innerHTML = '<div class="empty-note">No parts selected yet. Add items from the catalog to build the "Aggressive Weekend Toy" package — the engine will flag missing supporting mods and conflicts here as you go.</div>';
+  }
+  build.forEach(id => {
+    const p = PARTS.find(x=>x.id===id);
+    const item = document.createElement('div');
+    item.className = 'build-item';
+    item.innerHTML = `<span>${p.name}</span><button data-id="${p.id}">✕</button>`;
+    item.querySelector('button').onclick = () => toggleatn(p.id);
+    list.appendChild(item);
+  });
+
+  const { missing, conflicts } = computeAlerts();
+  alertsEl.innerHTML = '';
+  const seenMissing = new Set();
+  missing.forEach(m => {
+    if(seenMissing.has(m.needs.id)) return;
+    seenMissing.add(m.needs.id);
+    const div = document.createElement('div');
+    div.className = 'alert warn';
+    div.innerHTML = `<div class="alert-title">Missing Requirement</div>
+      "${m.for.name}" needs <b>${m.needs.name}</b> to function correctly.
+      <button data-id="${m.needs.id}">+ Add ${m.needs.name}</button>`;
+    div.querySelector('button').onclick = () => toggleatn(m.needs.id);
+    alertsEl.appendChild(div);
+  });
+  conflicts.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'alert warn';
+    div.innerHTML = `<div class="alert-title">Conflict</div>"${c.a.name}" conflicts with "${c.b.name}" — remove one.`;
+    alertsEl.appendChild(div);
+  });
+  if(missing.length === 0 && conflicts.length === 0 && build.size > 0){
+    const div = document.createElement('div');
+    div.className = 'alert info';
+    div.innerHTML = `<div class="alert-title">No Open Issues</div>Every selected part has its supporting requirements met.`;
+    alertsEl.appendChild(div);
+  }
+}
+
+// ---------- STATS ----------
+function renderStats(){
+  let costMin=0, costMax=0, powerMin=0, powerMax=0, confSum=0, confCount=0;
+  build.forEach(id => {
+    const p = PARTS.find(x=>x.id===id);
+    costMin += p.cost[0]; costMax += p.cost[1];
+    powerMin += p.powerGain[0]; powerMax += p.powerGain[1];
+    confSum += p.confidence==='high'?3:p.confidence==='med'?2:1;
+    confCount++;
+  });
+  document.getElementById('statPower').textContent =
+    powerMax > 0 ? `${BASE_POWER+powerMin}–${BASE_POWER+powerMax}` : `${BASE_POWER}`;
+  document.getElementById('statCost').textContent =
+    build.size ? `$${costMin.toLocaleString()}–$${costMax.toLocaleString()}` : '$0';
+  const { missing, conflicts } = computeAlerts();
+  document.getElementById('statReqs').textContent = new Set(missing.map(m=>m.needs.id)).size + conflicts.length;
+  if(confCount === 0){
+    document.getElementById('statConf').textContent = '—';
+  } else {
+    const avg = confSum/confCount;
+    document.getElementById('statConf').textContent = avg >= 2.5 ? 'High' : avg >= 1.5 ? 'Medium' : 'Low';
+  }
+}
+
+function renderAll(){
+  renderCatalog();
+  renderSidebar();
+  renderStats();
+}
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = btn.dataset.mode;
+    renderCatalog();
+  };
+});
+
+renderAll();
+// open first group by default
+document.querySelector('.cat-body')?.classList.add('open');
+</script>
+
+</body>
+</html>

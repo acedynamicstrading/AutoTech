@@ -1,0 +1,12 @@
+{
+  "name": "vehicle-build-platform",
+  "version": "0.1.0",
+  "description": "NFS-style vehicle build recommendation platform — dependency-aware fitment engine, VIN decode, catalog API.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js && node photo-render.test.js",
+    "demo": "node demo.js"
+  },
+  "license": "UNLICENSED"
+}

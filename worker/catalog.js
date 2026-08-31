@@ -1,0 +1,424 @@
+export const catalogData = {
+  "vehicle": {
+    "make": "Mazda",
+    "model": "3",
+    "generation": "BP (2019-2024)",
+    "bodyStyle": "Hatchback",
+    "engine": "Skyactiv-G 2.0",
+    "basePowerWhp": 182
+  },
+  "parts": [
+    {
+      "id": "widebody",
+      "cat": "Visual",
+      "sub": "Body Kits & Aero",
+      "name": "Aggressive Widebody Kit",
+      "cost": [
+        2800,
+        5200
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": true,
+      "confidence": "med",
+      "note": "Requires fender cutting/fabrication on BP-chassis hatch — not a bolt-on."
+    },
+    {
+      "id": "front_splitter",
+      "cat": "Visual",
+      "sub": "Body Kits & Aero",
+      "name": "Front Splitter",
+      "cost": [
+        350,
+        700
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": true,
+      "confidence": "high",
+      "note": "Bolts to most aftermarket or stock front bumpers."
+    },
+    {
+      "id": "rear_diffuser",
+      "cat": "Visual",
+      "sub": "Body Kits & Aero",
+      "name": "Rear Diffuser",
+      "cost": [
+        300,
+        650
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": true,
+      "confidence": "high",
+      "note": "Fits stock rear bumper, most aftermarket options."
+    },
+    {
+      "id": "gt_wing",
+      "cat": "Visual",
+      "sub": "Wings & Spoilers",
+      "name": "Adjustable GT Wing",
+      "cost": [
+        600,
+        1400
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [],
+      "conflicts": [
+        "duckbill"
+      ],
+      "trackOnly": true,
+      "confidence": "med",
+      "note": "May require trunk drilling/reinforcement — hatch mounting differs from sedan."
+    },
+    {
+      "id": "duckbill",
+      "cat": "Visual",
+      "sub": "Wings & Spoilers",
+      "name": "Duckbill Spoiler",
+      "cost": [
+        150,
+        350
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [],
+      "conflicts": [
+        "gt_wing"
+      ],
+      "trackOnly": false,
+      "confidence": "high",
+      "note": "Direct bolt-on, low downforce."
+    },
+    {
+      "id": "wheels_18",
+      "cat": "Visual",
+      "sub": "Wheels & Tires",
+      "name": "18x9.5 / 18x10.5 Forged Wheels (square)",
+      "cost": [
+        2400,
+        4800
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": true,
+      "confidence": "med",
+      "note": "Rear fitment on stock-width fenders requires the widebody kit or fender rolling."
+    },
+    {
+      "id": "wrap",
+      "cat": "Visual",
+      "sub": "Wrap / Paint / Livery",
+      "name": "Full Satin/Gloss Wrap + Livery",
+      "cost": [
+        2500,
+        4500
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": false,
+      "confidence": "high",
+      "note": "No fitment dependency — cosmetic only."
+    },
+    {
+      "id": "underglow",
+      "cat": "Visual",
+      "sub": "Lighting",
+      "name": "Underglow + Darkened Lighting",
+      "cost": [
+        300,
+        900
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": true,
+      "confidence": "high",
+      "note": "Underglow is off-road/show-only in most jurisdictions."
+    },
+    {
+      "id": "bucket_seats",
+      "cat": "Visual",
+      "sub": "Interior",
+      "name": "Bucket Seats + 4-Point Harnesses",
+      "cost": [
+        1200,
+        2600
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [
+        "half_cage"
+      ],
+      "conflicts": [],
+      "trackOnly": true,
+      "confidence": "high",
+      "note": "Harness bar or cage mounting point required for correct harness angle."
+    },
+    {
+      "id": "half_cage",
+      "cat": "Visual",
+      "sub": "Interior",
+      "name": "Half Cage",
+      "cost": [
+        1500,
+        3200
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": true,
+      "confidence": "med",
+      "note": "Chassis-specific mounting kit needed — confirm hatch vs sedan chassis points."
+    },
+    {
+      "id": "cai",
+      "cat": "Performance",
+      "sub": "Intake & Exhaust",
+      "name": "Cold Air Intake",
+      "cost": [
+        250,
+        450
+      ],
+      "powerGain": [
+        5,
+        10
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": false,
+      "confidence": "high",
+      "note": "Minimal gain in isolation on stock turbo/NA setup."
+    },
+    {
+      "id": "catback",
+      "cat": "Performance",
+      "sub": "Intake & Exhaust",
+      "name": "Full Turbo-Back Exhaust",
+      "cost": [
+        900,
+        1800
+      ],
+      "powerGain": [
+        10,
+        20
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": true,
+      "confidence": "high",
+      "note": "Loud — track/show only in most areas."
+    },
+    {
+      "id": "intercooler",
+      "cat": "Performance",
+      "sub": "Cooling",
+      "name": "Upgraded Intercooler",
+      "cost": [
+        500,
+        1100
+      ],
+      "powerGain": [
+        5,
+        15
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": false,
+      "confidence": "high",
+      "note": "Foundation mod, supports later boost increases."
+    },
+    {
+      "id": "turbo_kit",
+      "cat": "Performance",
+      "sub": "Engine & Forced Induction",
+      "name": "Larger Turbo Kit (hybrid/upgrade)",
+      "cost": [
+        3500,
+        7000
+      ],
+      "powerGain": [
+        120,
+        180
+      ],
+      "requires": [
+        "fuel_system",
+        "ecu_tune",
+        "intercooler",
+        "clutch_upgrade"
+      ],
+      "conflicts": [],
+      "trackOnly": true,
+      "confidence": "med",
+      "note": "Mazda 3 aftermarket turbo support is thinner than WRX/GTI-class platforms — expect semi-custom fabrication."
+    },
+    {
+      "id": "fuel_system",
+      "cat": "Performance",
+      "sub": "Fuel & Ignition",
+      "name": "Upgraded Fuel Pump + Injectors",
+      "cost": [
+        600,
+        1300
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": false,
+      "confidence": "high",
+      "note": "Required supporting mod once boost/power target exceeds stock fuel delivery."
+    },
+    {
+      "id": "ecu_tune",
+      "cat": "Performance",
+      "sub": "ECU / Electronics",
+      "name": "Standalone ECU / Tune",
+      "cost": [
+        1200,
+        2800
+      ],
+      "powerGain": [
+        15,
+        25
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": false,
+      "confidence": "med",
+      "note": "Mazda Skyactiv tuning support is more limited than Subaru/VW ecosystems — verify tuner availability first."
+    },
+    {
+      "id": "clutch_upgrade",
+      "cat": "Performance",
+      "sub": "Drivetrain",
+      "name": "Stronger Clutch",
+      "cost": [
+        700,
+        1500
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": false,
+      "confidence": "high",
+      "note": "Required once torque exceeds stock clutch rating."
+    },
+    {
+      "id": "nitrous",
+      "cat": "Performance",
+      "sub": "Engine & Forced Induction",
+      "name": "Nitrous Kit",
+      "cost": [
+        900,
+        1800
+      ],
+      "powerGain": [
+        40,
+        75
+      ],
+      "requires": [
+        "fuel_system"
+      ],
+      "conflicts": [],
+      "trackOnly": true,
+      "confidence": "low",
+      "note": "Low real-world documentation on this platform — treat gain range as low-confidence."
+    },
+    {
+      "id": "coilovers",
+      "cat": "Performance",
+      "sub": "Suspension",
+      "name": "Fully Adjustable Coilovers",
+      "cost": [
+        1200,
+        2800
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": false,
+      "confidence": "high",
+      "note": "Well-supported on this platform."
+    },
+    {
+      "id": "sway_bars",
+      "cat": "Performance",
+      "sub": "Suspension",
+      "name": "Sway Bars + Camber Arms",
+      "cost": [
+        500,
+        1100
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": false,
+      "confidence": "high",
+      "note": "Direct bolt-on across generations."
+    },
+    {
+      "id": "bbk",
+      "cat": "Performance",
+      "sub": "Brakes",
+      "name": "Big Brake Kit (F+R)",
+      "cost": [
+        2000,
+        4200
+      ],
+      "powerGain": [
+        0,
+        0
+      ],
+      "requires": [],
+      "conflicts": [],
+      "trackOnly": false,
+      "confidence": "med",
+      "note": "Confirm caliper clearance against the specific wheel size chosen."
+    }
+  ]
+};
