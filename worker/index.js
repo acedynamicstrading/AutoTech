@@ -13,7 +13,13 @@
 import { catalogData } from './catalog.js';
 import { validateCatalog, evaluateBuild, autoCompleteBuild } from './engine.js';
 import { decodeVIN } from './vin-decode.js';
-import { renderBuild, workersAiProvider, mockProvider } from './photo-render.js';
+import {
+  renderBuild,
+  workersAiProvider,
+  renderBuildFromText,
+  workersAiTextToImageProvider,
+  mockProvider,
+} from './photo-render.js';
 
 const { parts: catalog, vehicle: defaultVehicle } = catalogData;
 
@@ -95,6 +101,28 @@ export default {
           catalog,
           imageBase64,
           provider: env && env.AI ? workersAiProvider : mockProvider,
+          env,
+        });
+        return json(result);
+      } catch (err) {
+        return json({ error: err.message }, 400);
+      }
+    }
+
+    if (pathname === '/api/build/render-image' && method === 'POST') {
+      const { buildIds, vehicle } = await readJSON(request);
+      if (!Array.isArray(buildIds)) return json({ error: 'buildIds must be an array' }, 400);
+      try {
+        // No imageBase64 here by design — this is the VIN-only path (no
+        // upload), so the car is generated from the vehicle + build
+        // description via Flux text-to-image instead of edited from a
+        // photo. Same env.AI binding, same free Neurons allocation as
+        // /api/build/render.
+        const result = await renderBuildFromText({
+          vehicle: vehicle || defaultVehicle,
+          buildIds,
+          catalog,
+          provider: env && env.AI ? workersAiTextToImageProvider : mockProvider,
           env,
         });
         return json(result);

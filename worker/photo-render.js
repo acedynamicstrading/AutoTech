@@ -21,6 +21,26 @@ export function buildRenderPrompt(vehicle, buildIds, catalog) {
   ].join(' ');
 }
 
+/**
+ * Prompt builder for the text-to-image path (no uploaded photo). Unlike
+ * buildRenderPrompt above — which describes an *edit* and returns null with
+ * nothing to edit — this always returns a prompt, since a from-scratch
+ * generation still needs to describe the whole car even when stock.
+ */
+export function buildTextToImagePrompt(vehicle, buildIds, catalog) {
+  const parts = buildIds.map(id => catalog.find(p => p.id === id)).filter(Boolean);
+  const visualParts = parts.filter(p => p.cat === 'Visual');
+  const vehicleDesc = `${vehicle.make} ${vehicle.model} (${vehicle.generation || vehicle.modelYear})`;
+  const modsClause = visualParts.length
+    ? `fitted with these visual modifications: ${visualParts.map(p => `${p.name} (${p.sub})`).join(', ')}`
+    : 'in stock, unmodified condition';
+
+  return [
+    `Photorealistic three-quarter front studio photo of a ${vehicleDesc}, ${modsClause}.`,
+    `Clean neutral studio background, soft natural daylight, sharp focus, professional automotive photography, no text or watermarks.`,
+  ].join(' ');
+}
+
 export async function mockProvider(prompt) {
   await new Promise(r => setTimeout(r, 10));
   return {
@@ -66,6 +86,35 @@ export async function workersAiProvider(prompt, imageBase64, env) {
     imageUrl: null,
     imageBase64: arrayBufferToBase64(buffer),
     provider: 'workers-ai',
+  };
+}
+
+/**
+ * Real provider — Cloudflare Workers AI text-to-image, bound as `env.AI`
+ * (same binding as workersAiProvider above, no extra setup). Used when
+ * there's no uploaded photo to edit — e.g. a build looked up by VIN — so
+ * the car has to be generated from a description instead of transformed
+ * from a base image.
+ *
+ * Uses flux-1-schnell (Black Forest Labs): fast text-to-image, 1–4 steps,
+ * part of the same free Workers AI Neurons allocation as the img2img model
+ * above. Unlike the img2img provider, the response comes back as
+ * `{ image: base64String }` directly — no ReadableStream to buffer.
+ */
+export async function workersAiTextToImageProvider(prompt, env) {
+  if (!env || !env.AI) {
+    throw new Error('Workers AI binding (env.AI) is not available — add [ai]\\nbinding = "AI" to wrangler.toml and redeploy.');
+  }
+
+  const output = await env.AI.run('@cf/black-forest-labs/flux-1-schnell', {
+    prompt,
+    steps: 6,
+  });
+
+  return {
+    imageUrl: null,
+    imageBase64: output.image,
+    provider: 'workers-ai-flux',
   };
 }
 
@@ -116,6 +165,26 @@ export async function renderBuild({ vehicle, buildIds, catalog, imageBase64, pro
   }
 
   const result = await provider(prompt, imageBase64, env);
+
+  return {
+    skipped: false,
+    prompt,
+    buildValid: analysis.isValid,
+    buildWarnings: analysis.isValid ? [] : [...analysis.missing, ...analysis.conflicts],
+    ...result,
+  };
+}
+
+/**
+ * Text-to-image counterpart to renderBuild — no imageBase64 required, since
+ * the vehicle+build description alone is enough to generate a render. Used
+ * by the /api/build/render-image route (VIN-only flow, no photo upload).
+ */
+export async function renderBuildFromText({ vehicle, buildIds, catalog, provider = mockProvider, env }) {
+  const analysis = analyzeBuild(buildIds, catalog);
+  const prompt = buildTextToImagePrompt(vehicle, buildIds, catalog);
+
+  const result = await provider(prompt, env);
 
   return {
     skipped: false,
