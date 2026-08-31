@@ -1,0 +1,38 @@
+name: Unzip and commit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '*.zip'
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Unzip any zip files at repo root
+        run: |
+          shopt -s nullglob
+          for f in *.zip; do
+            echo "Unzipping $f"
+            rm -rf _unzipped_tmp
+            unzip -o "$f" -d _unzipped_tmp
+            if [ "$(ls -1 _unzipped_tmp | wc -l)" -eq 1 ] && [ -d "_unzipped_tmp/$(ls -1 _unzipped_tmp)" ]; then
+              inner="_unzipped_tmp/$(ls -1 _unzipped_tmp)"
+              cp -rf "$inner"/. .
+            else
+              cp -rf _unzipped_tmp/. .
+            fi
+            rm -rf _unzipped_tmp
+            rm -f "$f"
+          done
+
+      - name: Commit extracted files
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Auto-unzip uploaded archive"
+          branch: main
