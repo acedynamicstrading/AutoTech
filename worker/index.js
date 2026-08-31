@@ -13,7 +13,7 @@
 import { catalogData } from './catalog.js';
 import { validateCatalog, evaluateBuild, autoCompleteBuild } from './engine.js';
 import { decodeVIN } from './vin-decode.js';
-import { renderBuild } from './photo-render.js';
+import { renderBuild, workersAiProvider, mockProvider } from './photo-render.js';
 
 const { parts: catalog, vehicle: defaultVehicle } = catalogData;
 
@@ -85,11 +85,17 @@ export default {
       const { buildIds, imageBase64, vehicle } = await readJSON(request);
       if (!Array.isArray(buildIds)) return json({ error: 'buildIds must be an array' }, 400);
       try {
+        // Uses the real Workers AI binding when it's available (deployed
+        // with the [ai] block in wrangler.toml); falls back to the mock
+        // provider otherwise (e.g. running worker/test.js with no env, or
+        // local dev without the binding configured) so nothing breaks.
         const result = await renderBuild({
           vehicle: vehicle || defaultVehicle,
           buildIds,
           catalog,
           imageBase64,
+          provider: env && env.AI ? workersAiProvider : mockProvider,
+          env,
         });
         return json(result);
       } catch (err) {

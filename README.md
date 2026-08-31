@@ -1,4 +1,4 @@
-# Vehicle Build Platform new
+# Vehicle Build Platform
 
 NFS-style vehicle customization/build recommendation platform. Frontend +
 API, ready to deploy to Cloudflare Pages + Workers (matching the rest of
@@ -103,9 +103,13 @@ API wasn't reachable from the dev sandbox this was built in — see
   route to `vpic.nhtsa.dot.gov`. The code path is correct and falls back
   to fixtures automatically on failure; test it with a real VIN once
   deployed to confirm the live branch works as written.
-- **`photo-render.js` has no real image-gen provider wired in** — only the
-  mock provider (`mockProvider`) is active and tested. See "Wiring a real
-  image-gen provider" below.
+- **`photo-render.js` now uses Cloudflare Workers AI by default** —
+  `stable-diffusion-v1-5-img2img`, bound via the `[ai]` block in
+  `wrangler.toml`. Free allocation: 10,000 Neurons/day, no separate vendor
+  account. It automatically falls back to the mock provider when `env.AI`
+  isn't available (e.g. running `worker/test.js` directly, or
+  `local-dev-server.js` without wrangler) — see "Wiring a real image-gen
+  provider" below for swapping in a paid provider later.
 - **`catalog.js` has 20 parts, text-only, no product images** — see
   SOURCES.md for retailer sources (Summit Racing, Up Garage, Nengun) that
   have real product photos if/when that gets prioritized.
@@ -113,16 +117,28 @@ API wasn't reachable from the dev sandbox this was built in — see
   `Access-Control-Allow-Origin` to your actual Pages domain before treating
   this as production-ready.
 
-## Wiring a real image-gen provider
+## Photo rendering
+
+`/api/build/render` uses **Cloudflare Workers AI** (`workersAiProvider` in
+`worker/photo-render.js`) by default — no extra deploy step needed beyond
+what's already in `wrangler.toml`'s `[ai]` block. It builds a prompt from
+the actually-selected catalog parts, runs it against
+`stable-diffusion-v1-5-img2img` with the uploaded base photo, and returns
+the result as base64. Falls back to `mockProvider` automatically whenever
+`env.AI` isn't present (unit tests, `local-dev-server.js` without
+wrangler) so nothing breaks outside the real Cloudflare runtime.
+
+### Swapping in a paid provider later
 
 `worker/photo-render.js` has a commented-out `openAiProvider` function
-showing the shape. To activate:
+showing the shape, for when Workers AI's free quota or generic-SD quality
+isn't enough:
 
 1. `npx wrangler secret put OPENAI_API_KEY` (or whichever vendor)
 2. Uncomment and adapt the provider function for your chosen vendor's API
-3. Pass `env` through from `worker/index.js`'s `/api/build/render` handler
-   into `renderBuild()`, and swap `provider: mockProvider` for your real
-   function
+3. In `worker/index.js`'s `/api/build/render` handler, swap the
+   `provider: env && env.AI ? workersAiProvider : mockProvider` line for
+   your new provider
 
 Vendor candidates from the research pass: OpenAI images/edit endpoint,
 Stability AI image-to-image, or Visualizee's white-label "VizTunr" product.

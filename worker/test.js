@@ -98,6 +98,35 @@ function req(path, { method = 'GET', body } = {}) {
     assert.strictEqual(body.provider, 'mock');
   });
 
+  await test('POST /api/build/render uses Workers AI when env.AI is bound', async () => {
+    // Minimal fake AI binding — enough to prove index.js selects the real
+    // provider (not mock) once env.AI exists, without hitting the network.
+    const fakeEnv = {
+      AI: {
+        async run() {
+          return new Response(new Uint8Array([1, 2, 3])); // stand-in image bytes
+        },
+      },
+    };
+    const res = await worker.fetch(
+      req('/api/build/render', { method: 'POST', body: { buildIds: ['widebody', 'wrap'], imageBase64: btoa('fake') } }),
+      fakeEnv
+    );
+    const body = await res.json();
+    assert.strictEqual(body.skipped, false);
+    assert.strictEqual(body.provider, 'workers-ai');
+    assert.ok(body.imageBase64.length > 0);
+  });
+
+  await test('POST /api/build/render surfaces a clear error when env.AI is missing but expected', async () => {
+    const res = await worker.fetch(
+      req('/api/build/render', { method: 'POST', body: { buildIds: ['widebody'], imageBase64: btoa('fake') } })
+      // no second arg => env undefined => falls back to mock, so this should NOT error
+    );
+    const body = await res.json();
+    assert.strictEqual(body.provider, 'mock');
+  });
+
   await test('Unknown route returns 404', async () => {
     const res = await worker.fetch(req('/api/nonexistent'));
     assert.strictEqual(res.status, 404);

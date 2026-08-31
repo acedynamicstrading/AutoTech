@@ -2,13 +2,22 @@ name = "vehicle-build-platform-api"
 main = "worker/index.js"
 compatibility_date = "2026-08-31"
 
+# Workers AI binding — powers the real photo-render provider in
+# worker/photo-render.js (stable-diffusion-v1-5-img2img). Free allocation:
+# 10,000 Neurons/day, shared across all Workers AI models on the account,
+# no separate API key or vendor account needed. No config beyond this
+# binding is required.
+[ai]
+binding = "AI"
+
 # After deploy, your API will be live at:
 #   https://vehicle-build-platform-api.<your-subdomain>.workers.dev
 #
 # To deploy: wrangler deploy
 # To test locally against the real Workers runtime: wrangler dev
 #
-# If you later want a real image-gen provider key for photo-render.js:
+# If you later want a higher-fidelity paid provider instead of Workers AI:
 #   wrangler secret put OPENAI_API_KEY
 # then bind it via `env.OPENAI_API_KEY` inside the (currently commented out)
-# openAiProvider function in worker/photo-render.js.
+# openAiProvider function in worker/photo-render.js, and swap the provider
+# selection in worker/index.js's /api/build/render handler.

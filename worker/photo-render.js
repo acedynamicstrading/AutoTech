@@ -33,9 +33,64 @@ export async function mockProvider(prompt) {
 }
 
 /**
- * Real provider shape, for reference — requires an API key bound as a
- * Worker secret (wrangler secret put OPENAI_API_KEY) and is NOT active
- * until you swap it in for mockProvider below.
+ * Real provider — Cloudflare Workers AI, bound as `env.AI` (see wrangler.toml
+ * [ai] block). Free allocation: 10,000 Neurons/day, shared across all
+ * Workers AI models on the account, resetting daily at 00:00 UTC. No
+ * separate API key or third-party account needed — it's a native Worker
+ * binding, same as any other env resource.
+ *
+ * Uses stable-diffusion-v1-5-img2img: takes the uploaded base photo plus
+ * the catalog-derived prompt and returns a transformed image. `strength`
+ * controls how far the output can drift from the input photo (0 = identical
+ * to input, 1 = ignores input entirely) — kept low-ish here so the render
+ * stays recognizably the user's actual car rather than a generic reimagining.
+ */
+export async function workersAiProvider(prompt, imageBase64, env) {
+  if (!env || !env.AI) {
+    throw new Error('Workers AI binding (env.AI) is not available — add [ai]\\nbinding = "AI" to wrangler.toml and redeploy.');
+  }
+
+  const inputBytes = base64ToUint8Array(imageBase64);
+
+  const output = await env.AI.run('@cf/runwayml/stable-diffusion-v1-5-img2img', {
+    prompt,
+    image: Array.from(inputBytes),
+    strength: 0.55,
+    num_steps: 20,
+  });
+
+  // Workers AI image models return a ReadableStream of raw image bytes.
+  const buffer = await new Response(output).arrayBuffer();
+
+  return {
+    imageUrl: null,
+    imageBase64: arrayBufferToBase64(buffer),
+    provider: 'workers-ai',
+  };
+}
+
+function base64ToUint8Array(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+/**
+ * Real provider shape for OpenAI, kept for reference in case a paid
+ * higher-fidelity provider is wanted later. Requires a Worker secret
+ * (wrangler secret put OPENAI_API_KEY) and is NOT active by default —
+ * see index.js for how the provider is currently selected.
  */
 // async function openAiProvider(prompt, imageBase64, env) {
 //   const res = await fetch('https://api.openai.com/v1/images/edits', {
@@ -48,7 +103,7 @@ export async function mockProvider(prompt) {
 //   return { imageUrl: json.data[0].url, provider: 'openai' };
 // }
 
-export async function renderBuild({ vehicle, buildIds, catalog, imageBase64, provider = mockProvider }) {
+export async function renderBuild({ vehicle, buildIds, catalog, imageBase64, provider = mockProvider, env }) {
   if (!imageBase64) {
     throw new Error('A base photo is required for photo-based rendering.');
   }
@@ -60,7 +115,7 @@ export async function renderBuild({ vehicle, buildIds, catalog, imageBase64, pro
     return { skipped: true, reason: 'No visual parts selected — nothing to render.' };
   }
 
-  const result = await provider(prompt, imageBase64);
+  const result = await provider(prompt, imageBase64, env);
 
   return {
     skipped: false,
