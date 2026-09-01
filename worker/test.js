@@ -98,7 +98,7 @@ function req(path, { method = 'GET', body } = {}) {
     assert.strictEqual(body.provider, 'mock');
   });
 
-  await test('POST /api/build/render uses Workers AI when env.AI is bound', async () => {
+  await test('POST /api/build/render uses FLUX.2 (default) when env.AI is bound', async () => {
     // Minimal fake AI binding — enough to prove index.js selects the real
     // provider (not mock) once env.AI exists, without hitting the network.
     const fakeEnv = {
@@ -114,8 +114,27 @@ function req(path, { method = 'GET', body } = {}) {
     );
     const body = await res.json();
     assert.strictEqual(body.skipped, false);
-    assert.strictEqual(body.provider, 'workers-ai');
+    assert.strictEqual(body.provider, 'flux-2');
     assert.ok(body.imageBase64.length > 0);
+  });
+
+  await test('POST /api/build/render uses Stable Diffusion when renderModel: "sd15" is requested', async () => {
+    const fakeEnv = {
+      AI: {
+        async run() {
+          return new Response(new Uint8Array([1, 2, 3]));
+        },
+      },
+    };
+    const res = await worker.fetch(
+      req('/api/build/render', {
+        method: 'POST',
+        body: { buildIds: ['widebody'], imageBase64: btoa('fake'), renderModel: 'sd15' },
+      }),
+      fakeEnv
+    );
+    const body = await res.json();
+    assert.strictEqual(body.provider, 'workers-ai');
   });
 
   await test('POST /api/build/render surfaces a clear error when env.AI is missing but expected', async () => {

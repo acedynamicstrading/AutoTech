@@ -70,6 +70,26 @@
   .stat-value.teal{ color: var(--teal); }
   .stat-value.red{ color: var(--red); }
 
+  .viewport{
+    padding: 18px; border-bottom: 1px solid var(--line); background: var(--panel);
+    display:flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .viewport-frame{
+    width: 100%; max-width: 640px; min-height: 220px; max-height: 52vh;
+    display:flex; align-items:center; justify-content:center;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px;
+    overflow: hidden; position: relative;
+  }
+  .viewport-frame img{ width: 100%; height: 100%; object-fit: contain; display: none; }
+  .viewport-empty{
+    text-align:center; color: var(--text-dim); font-size: 12px; padding: 24px; max-width: 320px;
+  }
+  .viewport-controls{ width:100%; max-width: 640px; display:flex; gap:8px; flex-wrap: wrap; align-items:center; }
+  .viewport-controls input[type=file]{
+    flex:1; min-width: 160px; font-size: 11px; color: var(--text-dim);
+  }
+  .viewport-status{ font-size: 11px; color: var(--text-dim); width:100%; max-width: 640px; }
+
   .layout{ display:flex; flex-direction: column; }
   @media(min-width: 860px){
     .layout{ flex-direction: row; align-items: flex-start; }
@@ -170,6 +190,19 @@
   <div class="stat"><div class="stat-label">Open Requirements</div><div class="stat-value red" id="statReqs">0</div></div>
 </div>
 
+<div class="viewport">
+  <div class="viewport-frame" id="viewportFrame">
+    <div class="viewport-empty" id="viewportEmpty">Decode a VIN for a reference photo, or upload a photo of your own car to see it here.</div>
+    <img id="carPhoto" alt="Your car">
+  </div>
+  <div class="viewport-status" id="viewportAttribution" style="display:none; font-size:10px; color:var(--text-dim);"></div>
+  <div class="viewport-controls">
+    <input type="file" id="renderPhotoInput" accept="image/*">
+    <button class="mode-btn" id="renderBuildBtn">Generate Changes</button>
+  </div>
+  <div class="viewport-status" id="renderStatus"></div>
+</div>
+
 <div class="layout">
   <div class="catalog" id="catalog"></div>
   <div class="sidebar">
@@ -229,6 +262,7 @@ document.getElementById('decodeVinBtn').onclick = async () => {
     const data = await res.json();
     if (!res.ok) { sub.textContent = `VIN decode failed: ${data.error}`; return; }
     sub.textContent = `${data.modelYear} ${data.make} ${data.model} · ${data.engine || ''} · Region: ${data.region} (source: ${data.source})`;
+    if (data.make && data.model) fetchReferencePhoto(data.make, data.model, data.modelYear);
   } catch (err) {
     sub.textContent = `VIN decode error: ${err.message}`;
   }
@@ -470,9 +504,9 @@ function renderAll(){
   renderStats();
 }
 
-document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => {
+document.querySelectorAll('.mode-btn').forEach(btn => {
   btn.onclick = () => {
-    document.querySelectorAll('.mode-btn[data-mode]').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     mode = btn.dataset.mode;
     renderCatalog();
@@ -482,6 +516,181 @@ document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => {
 renderAll();
 // open first group by default
 document.querySelector('.cat-body')?.classList.add('open');
+
+// ---------- REFERENCE PHOTO (from VIN, before any upload) ----------
+// Wikimedia Commons only hosts media that's freely licensed for reuse,
+// including commercial use — every file's license is checked below, and
+// non-commercial/no-derivative licenses (NC, ND) are explicitly excluded
+// since this render pipeline creates derivative (AI-edited) images. The
+// Commons Action API supports anonymous cross-origin requests via
+// origin=* — no key, no server-side proxy needed.
+//
+// IMPORTANT CAVEAT, surfaced in the UI, not hidden: this returns a
+// representative photo of that make/model/year — NOT the user's specific
+// vehicle (different color/trim/condition/angle almost certainly). It's a
+// free instant placeholder, not a substitute for their own photo when it
+// comes to an accurate personalized render.
+let referencePhoto = null; // { url, attributionText } | null
+
+const SAFE_LICENSE_PATTERN = /^(cc0|public domain|cc[\s-]?by(?![\s-]?(nc|nd)))/i;
+
+async function fetchReferencePhoto(make, model, year){
+  const statusEl = document.getElementById('renderStatus');
+  const query = `${year || ''} ${make} ${model}`.trim();
+  const apiUrl = 'https://commons.wikimedia.org/w/api.php?' + new URLSearchParams({
+    action: 'query', generator: 'search', gsrsearch: query, gsrnamespace: '6', gsrlimit: '10',
+    prop: 'imageinfo', iiprop: 'url|extmetadata', iiurlwidth: '800', format: 'json', origin: '*',
+  });
+
+  try {
+    const res = await fetch(apiUrl);
+    const data = await res.json();
+    const pages = data?.query?.pages ? Object.values(data.query.pages) : [];
+
+    for (const page of pages) {
+      const info = page.imageinfo?.[0];
+      if (!info) continue;
+      const license = info.extmetadata?.LicenseShortName?.value || '';
+      if (!SAFE_LICENSE_PATTERN.test(license)) continue; // skip anything NC/ND or unlicensed
+
+      const artist = (info.extmetadata?.Artist?.value || 'Unknown author').replace(/<[^>]+>/g, '');
+      referencePhoto = {
+        url: info.thumburl || info.url,
+        attributionText: `Reference photo: ${artist}, ${license}, via Wikimedia Commons — not your exact vehicle.`,
+      };
+      break;
+    }
+
+    if (referencePhoto && !currentPhotoFile) {
+      showViewportImage(referencePhoto.url);
+      document.getElementById('viewportAttribution').textContent = referencePhoto.attributionText;
+      document.getElementById('viewportAttribution').style.display = 'block';
+      statusEl.textContent = 'Showing a reference photo — upload your own car\'s photo for an accurate personalized render.';
+    } else if (!referencePhoto) {
+      statusEl.textContent = 'No freely-licensed reference photo found for this vehicle — upload your own photo to get started.';
+    }
+  } catch (err) {
+    // Non-fatal — reference photo is a nice-to-have, not required for the
+    // core flow, so fail quietly here rather than blocking VIN decode.
+    console.warn('Reference photo lookup failed:', err.message);
+  }
+}
+
+// ---------- PHOTOREALISTIC RENDER ----------
+// Design choice: the viewport shows the user's OWN uploaded photo the
+// instant they pick one — that's already perfectly photorealistic (it's
+// their actual car) and completely free/instant, no AI call needed.
+// Selecting/deselecting parts does NOT touch the viewport live — only
+// "Generate Changes" fires the AI render, intentionally, since that's a
+// several-second paid-Neuron call and shouldn't fire on every click.
+
+let currentPhotoFile = null;
+
+const viewportFrame = document.getElementById('viewportFrame');
+const viewportEmpty = document.getElementById('viewportEmpty');
+const carPhotoEl = document.getElementById('carPhoto');
+
+function showViewportImage(src){
+  carPhotoEl.src = src;
+  carPhotoEl.style.display = 'block';
+  viewportEmpty.style.display = 'none';
+}
+
+document.getElementById('renderPhotoInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  currentPhotoFile = file;
+  document.getElementById('viewportAttribution').style.display = 'none'; // real photo now, no attribution needed
+  const reader = new FileReader();
+  reader.onload = () => showViewportImage(reader.result);
+  reader.readAsDataURL(file);
+  document.getElementById('renderStatus').textContent = 'Photo loaded. Add parts, then tap Generate Changes.';
+});
+
+// FLUX.2 (the default real provider on the Worker) requires reference
+// images at or under 512x512 — resized here on the client, since Workers
+// has no canvas/image API to do this server-side. Long edge capped at
+// 512px, aspect ratio preserved, re-encoded as JPEG to keep the upload
+// small over mobile connections.
+function resizeImageFile(file, maxDim = 512, quality = 0.85){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = () => { img.src = reader.result; };
+    reader.onerror = reject;
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > height && width > maxDim) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+      else if (height > maxDim) { width = Math.round(width * (maxDim / height)); height = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', quality);
+      resolve(dataUrl.split(',')[1]); // strip the data: prefix, keep raw base64
+    };
+    img.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function resizeImageFromUrl(url, maxDim = 512, quality = 0.85){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // Wikimedia serves thumbnails with CORS enabled
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > height && width > maxDim) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+      else if (height > maxDim) { width = Math.round(width * (maxDim / height)); height = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      try {
+        resolve(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
+      } catch (err) {
+        // Canvas can end up "tainted" if the remote host doesn't send
+        // CORS headers for this particular file — fail clearly rather
+        // than silently, so the person knows to upload their own photo.
+        reject(new Error('Could not use the reference photo for rendering (cross-origin restriction) — please upload your own photo instead.'));
+      }
+    };
+    img.onerror = () => reject(new Error('Could not load the reference photo.'));
+    img.src = url;
+  });
+}
+
+document.getElementById('renderBuildBtn').onclick = async () => {
+  const statusEl = document.getElementById('renderStatus');
+
+  if (!currentPhotoFile && !referencePhoto) { statusEl.textContent = 'Decode a VIN or upload a photo of your car first.'; return; }
+  if (build.size === 0) { statusEl.textContent = 'Add at least one visual part to your build first.'; return; }
+  if (!apiReachable) { statusEl.textContent = 'Server unreachable — rendering needs the live API, not the offline fallback.'; return; }
+
+  statusEl.textContent = 'Preparing photo…';
+
+  try {
+    const imageBase64 = currentPhotoFile
+      ? await resizeImageFile(currentPhotoFile)
+      : await resizeImageFromUrl(referencePhoto.url);
+    statusEl.textContent = 'Rendering — this can take several seconds…';
+
+    const res = await fetch(`${API_BASE}/api/build/render`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ buildIds: Array.from(build), imageBase64 }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (data.skipped) { statusEl.textContent = data.reason; return; }
+
+    showViewportImage(`data:image/jpeg;base64,${data.imageBase64}`);
+    document.getElementById('viewportAttribution').style.display = 'none';
+    const approxNote = !currentPhotoFile ? ' (based on a generic reference photo, not your exact car)' : '';
+    statusEl.textContent = `Rendered via ${data.provider}${approxNote}${data.buildWarnings?.length ? ' — note: build has open requirements/conflicts' : ''}.`;
+  } catch (err) {
+    statusEl.textContent = `Render failed: ${err.message}`;
+  }
+};
 </script>
 
 </body>
