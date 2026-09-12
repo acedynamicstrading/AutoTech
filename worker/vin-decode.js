@@ -34,8 +34,42 @@ export function getRegionFromVIN(vin) {
   };
 }
 
-// Fallback fixtures — used only if the live NHTSA call fails (network issue,
-// rate limit, or an invalid/test VIN not in their database).
+// Offline WMI (World Manufacturer Identifier, ISO 3779) -> manufacturer
+// table. This is public standard data, not a third-party API — it's the
+// same "self-hosted, zero network calls, unlimited" pattern as corgi and
+// Wal33D/nhtsa-vin-decoder: no rate limit because there's no external call
+// to limit. Used as a genuine offline fallback layer, not just 3 fixture
+// VINs — this decodes MANUFACTURER for any VIN whose WMI is in the table,
+// live NHTSA call or not.
+const WMI_MANUFACTURER_TABLE = {
+  'JM1': 'Mazda', 'JM7': 'Mazda', '3MZ': 'Mazda (Mexico-built)', '4MZ': 'Mazda',
+  '1HG': 'Honda', '2HG': 'Honda', 'JHM': 'Honda', '19X': 'Honda',
+  'JN1': 'Nissan', '1N4': 'Nissan', '1N6': 'Nissan', '5N1': 'Nissan',
+  'JF1': 'Subaru', 'JF2': 'Subaru', '4S3': 'Subaru', '4S4': 'Subaru',
+  'WBA': 'BMW', 'WBS': 'BMW (M)', 'WBY': 'BMW (i)', '4US': 'BMW (US-built)',
+  'WVW': 'Volkswagen', 'WV1': 'Volkswagen (commercial)', '3VW': 'Volkswagen (Mexico-built)', '1VW': 'Volkswagen (US-built)',
+  '1FA': 'Ford', '1FT': 'Ford (truck)', '3FA': 'Ford (Mexico-built)', 'WF0': 'Ford (Europe)',
+  '1G1': 'Chevrolet', '1GC': 'Chevrolet (truck)', '2G1': 'Chevrolet (Canada-built)', '3G1': 'Chevrolet (Mexico-built)',
+  'KMH': 'Hyundai', 'KM8': 'Hyundai',
+  'KNA': 'Kia', 'KND': 'Kia',
+  'ZFA': 'Fiat', 'ZFF': 'Ferrari', 'ZAR': 'Alfa Romeo', 'ZLA': 'Lancia',
+  'VF1': 'Renault', 'VF3': 'Peugeot', 'VF7': 'Citroën',
+  'SAJ': 'Jaguar', 'SAL': 'Land Rover', 'SCC': 'Lotus',
+  'JT2': 'Toyota', 'JTD': 'Toyota', '4T1': 'Toyota', '5TD': 'Toyota',
+  'JA3': 'Mitsubishi', 'JA4': 'Mitsubishi',
+  'YV1': 'Volvo', 'YV4': 'Volvo',
+};
+
+export function getManufacturerFromVIN(vin) {
+  if (!vin || vin.length < 3) return null;
+  const wmi3 = vin.slice(0, 3).toUpperCase();
+  return WMI_MANUFACTURER_TABLE[wmi3] || null;
+}
+
+// Fallback fixtures — used only if BOTH the live NHTSA call fails AND the
+// offline WMI table above doesn't have a match. Kept small since the WMI
+// table now covers the general case; these are for exact-model-detail
+// fixtures the WMI table alone can't give you (model, year, engine).
 const MOCK_VIN_DB = {
   '3MZBPACL5KM123456': {
     make: 'Mazda', model: '3', modelYear: '2019', bodyClass: 'Hatchback',
@@ -67,10 +101,28 @@ export async function decodeVIN(vin, { useLive = true } = {}) {
 
   if (!result) {
     const fixture = MOCK_VIN_DB[vin];
-    if (!fixture) {
-      throw new Error(`VIN decode failed: no live API result and no local fixture for ${vin}`);
+    if (fixture) {
+      result = { ...fixture, vin };
+    } else {
+      // Second fallback layer: offline WMI decode. Won't give model/year/
+      // engine (that detail genuinely requires either NHTSA or a fixture),
+      // but gives real manufacturer identification for ANY VIN with a
+      // known WMI prefix — unlimited, zero network, works even if NHTSA
+      // and every other hosted API are all down or unreachable.
+      const manufacturer = getManufacturerFromVIN(vin);
+      if (manufacturer) {
+        result = {
+          make: manufacturer, model: null, modelYear: null, bodyClass: null,
+          engine: null, driveType: null, plantCountry: null,
+          source: 'offline-wmi-table',
+          manufacturerNote: 'Manufacturer identified via offline WMI decode only — model/year/engine detail requires a live NHTSA lookup or a matching fixture, neither of which was available.',
+        };
+      }
     }
-    result = { ...fixture, vin };
+  }
+
+  if (!result) {
+    throw new Error(`VIN decode failed: no live API result, no local fixture, and unrecognized WMI for ${vin}`);
   }
 
   return {

@@ -14,6 +14,9 @@ import { catalogData } from './catalog.js';
 import { validateCatalog, evaluateBuild, autoCompleteBuild } from './engine.js';
 import { decodeVIN } from './vin-decode.js';
 import { renderBuild, flux2Provider, workersAiProvider, mockProvider } from './photo-render.js';
+import { fetchRegionalParts, mergeWithBase, listRegions } from './sources/registry.js';
+import { fetchVehicleSpec } from './sources/wikidata-spec.js';
+import { searchPartsListing } from './sources/ebay-motors.js';
 
 const { parts: catalog, vehicle: defaultVehicle } = catalogData;
 
@@ -53,7 +56,32 @@ export default {
     }
 
     if (pathname === '/api/catalog' && method === 'GET') {
-      return json(catalogData);
+      const region = url.searchParams.get('region'); // e.g. ?region=JP
+      if (!region) {
+        return json(catalogData); // unchanged default behavior — no region requested
+      }
+      const regionalParts = await fetchRegionalParts(defaultVehicle, region.toUpperCase());
+      const merged = mergeWithBase(catalog, regionalParts);
+      return json({ vehicle: defaultVehicle, parts: merged, regionFilter: region.toUpperCase() });
+    }
+
+    if (pathname === '/api/sources/regions' && method === 'GET') {
+      return json({ regions: listRegions() });
+    }
+
+    if (pathname === '/api/vehicle-spec/wikidata' && method === 'GET') {
+      const make = url.searchParams.get('make');
+      const model = url.searchParams.get('model');
+      if (!make || !model) return json({ error: 'make and model query params required' }, 400);
+      const result = await fetchVehicleSpec(make, model);
+      return json(result);
+    }
+
+    if (pathname === '/api/parts/ebay-search' && method === 'GET') {
+      const q = url.searchParams.get('q');
+      if (!q) return json({ error: 'q query param required' }, 400);
+      const result = await searchPartsListing(q, env);
+      return json(result);
     }
 
     if (pathname === '/api/vin/decode' && method === 'POST') {

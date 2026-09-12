@@ -1,5 +1,7 @@
 import assert from 'assert';
 import worker from './index.js';
+import { catalogData } from './catalog.js';
+const { parts: catalog } = catalogData;
 
 let passed = 0, failed = 0;
 async function test(name, fn) {
@@ -144,6 +146,101 @@ function req(path, { method = 'GET', body } = {}) {
     );
     const body = await res.json();
     assert.strictEqual(body.provider, 'mock');
+  });
+
+  console.log('\n--- Regional Sources (multi-region catalog) ---');
+
+  await test('GET /api/sources/regions lists all registered adapters', async () => {
+    const res = await worker.fetch(req('/api/sources/regions'));
+    const body = await res.json();
+    const codes = body.regions.map(r => r.regionCode).sort();
+    assert.deepStrictEqual(codes, ['EU', 'JP', 'US']);
+  });
+
+  await test('GET /api/catalog?region=US returns base catalog + US-sourced parts', async () => {
+    const res = await worker.fetch(req('/api/catalog?region=US'));
+    const body = await res.json();
+    assert.strictEqual(body.regionFilter, 'US');
+    const usParts = body.parts.filter(p => p.region === 'US');
+    assert.ok(usParts.length > 0);
+    assert.ok(usParts.every(p => p.sourceRef && p.sourceRef.name === 'SEMA Data Co-op'));
+    assert.ok(body.parts.some(p => p.region === 'global'));
+  });
+
+  await test('GET /api/catalog?region=JP returns Japan-sourced parts with correct sourceRef', async () => {
+    const res = await worker.fetch(req('/api/catalog?region=JP'));
+    const body = await res.json();
+    const jpParts = body.parts.filter(p => p.region === 'JP');
+    assert.ok(jpParts.length > 0);
+    assert.ok(jpParts.some(p => p.sourceRef.name === 'Nengun Performance'));
+    assert.ok(jpParts.some(p => p.sourceRef.name === 'Up Garage'));
+  });
+
+  await test('GET /api/catalog?region=EU returns TecDoc-sourced parts', async () => {
+    const res = await worker.fetch(req('/api/catalog?region=EU'));
+    const body = await res.json();
+    const euParts = body.parts.filter(p => p.region === 'EU');
+    assert.ok(euParts.length > 0);
+    assert.ok(euParts.every(p => p.sourceRef.name === 'TecDoc / TecAlliance'));
+  });
+
+  await test('GET /api/catalog with no region param behaves exactly as before (backward compatible)', async () => {
+    const res = await worker.fetch(req('/api/catalog'));
+    const body = await res.json();
+    assert.strictEqual(body.parts.length, catalog.length);
+    assert.strictEqual(body.regionFilter, undefined);
+  });
+
+  await test('Cross-region conflict (US turbo vs JP supercharger) is symmetric and validator-clean', async () => {
+    const usRes = await worker.fetch(req('/api/catalog?region=US'));
+    const usBody = await usRes.json();
+    const jpRes = await worker.fetch(req('/api/catalog?region=JP'));
+    const jpBody = await jpRes.json();
+    const usPart = usBody.parts.find(p => p.id === 'us_borgwarner_efr_turbo');
+    const jpPart = jpBody.parts.find(p => p.id === 'jp_hks_gt_supercharger');
+    assert.ok(usPart.conflicts.includes('jp_hks_gt_supercharger'));
+    assert.ok(jpPart.conflicts.includes('us_borgwarner_efr_turbo'));
+  });
+
+  console.log('\n--- Genuinely Unlimited-Free Sources (no credentials required) ---');
+
+  await test('POST /api/vin/decode falls back to offline WMI table for unknown VIN with known manufacturer prefix', async () => {
+    const res = await worker.fetch(req('/api/vin/decode', { method: 'POST', body: { vin: 'JT2BF12E5W0123456' } }));
+    const body = await res.json();
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(body.make, 'Toyota');
+    assert.strictEqual(body.source, 'offline-wmi-table');
+    assert.strictEqual(body.model, null);
+  });
+
+  await test('POST /api/vin/decode still fails cleanly for a totally unrecognized VIN', async () => {
+    const res = await worker.fetch(req('/api/vin/decode', { method: 'POST', body: { vin: 'ZZZZZZZZZZZZZZZZZ' } }));
+    assert.strictEqual(res.status, 404);
+  });
+
+  await test('GET /api/vehicle-spec/wikidata requires make and model params', async () => {
+    const res = await worker.fetch(req('/api/vehicle-spec/wikidata'));
+    assert.strictEqual(res.status, 400);
+  });
+
+  await test('GET /api/vehicle-spec/wikidata returns a structured result even if the live call fails (sandbox-restricted here)', async () => {
+    const res = await worker.fetch(req('/api/vehicle-spec/wikidata?make=Mazda&model=3'));
+    const body = await res.json();
+    assert.strictEqual(res.status, 200);
+    assert.ok(body.source.startsWith('wikidata-'));
+    assert.ok(Array.isArray(body.results));
+  });
+
+  await test('GET /api/parts/ebay-search reports not-configured without EBAY_OAUTH_TOKEN bound', async () => {
+    const res = await worker.fetch(req('/api/parts/ebay-search?q=mazda+3+turbo'));
+    const body = await res.json();
+    assert.strictEqual(body.source, 'ebay-motors-not-configured');
+    assert.ok(body.note.includes('wrangler secret put'));
+  });
+
+  await test('GET /api/parts/ebay-search requires q param', async () => {
+    const res = await worker.fetch(req('/api/parts/ebay-search'));
+    assert.strictEqual(res.status, 400);
   });
 
   await test('Unknown route returns 404', async () => {

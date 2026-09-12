@@ -81,6 +81,35 @@ Car Editor, ModDrip, ModCar.ai, AutoVisuals, Visualizee.ai (+ white-label "VizTu
 
 - **Insurance-approved mod lists** (Adrian Flux, Chris Knott, Keith Michaels) — real category, but not structured/sourceable data; broker-by-broker quote decisions, not a public compatibility database. Dropped as a data source candidate.
 
+## Genuinely Unlimited-Free (no request cap, no trial, no forced upgrade)
+
+Distinct from everything above: these have no metered tier at all, vs. the
+"free tier with a cap" sources this project already excluded (vinfreecheck
+100/mo, GlobalVIN 100/mo sandbox, Vincario/vindecoder.eu free credits,
+Auto.dev, CarAPI daily caps — none of these are integrated).
+
+| Source | Category | Why unlimited | Built into this codebase? |
+|---|---|---|---|
+| NHTSA vPIC | VIN decode | Free US govt service, no key, no stated cap | Yes — `vin-decode.js` live path |
+| Offline WMI table (own, ISO 3779 public data) | VIN decode | Self-hosted, zero network calls — same pattern as corgi/Wal33D/nhtsa-vin-decoder | Yes — `vin-decode.js` `getManufacturerFromVIN()`, real fallback layer used when both NHTSA and fixtures miss |
+| Wikidata SPARQL | Vehicle spec | CC0 public domain, no key, no paywall (soft query-timeout only) | Yes — `sources/wikidata-spec.js`. Untested in dev sandbox (network allowlist blocks query.wikidata.org — got a 403), but unlike SEMA/TecDoc this should genuinely work once deployed since it needs no credentials, only network access, which the dev sandbox — not the code — is what's restricted. Verify post-deploy. |
+| DBpedia SPARQL | Vehicle spec | Same model as Wikidata | Not built — same category as Wikidata, redundant to add both initially |
+| eBay Motors Browse API | Parts marketplace | No per-call cost, only transaction fees if selling | Yes — `sources/ebay-motors.js`, but requires a free developer account + OAuth token (`wrangler secret put EBAY_OAUTH_TOKEN`) to activate. "Unlimited free" here means no metered paywall, not zero setup. |
+| SEMA Search (browse tool) | Parts marketplace | Free to browse | **Not built** — human-facing only, no API, no bulk export. Automating it means scraping, which carries the ToS/legal caveats already flagged elsewhere in this doc. Not worth building a fake adapter for a source that can't actually be called programmatically. |
+| Up Garage (website) | Parts marketplace | Free to browse | **Not built** — same reasoning as SEMA Search. Already listed above under Japan sources with the understanding that real automation would need scraping, not an API call. |
+| Wheel-Size.com (free website) | Fitment | Free to browse | **Not built** — the free-to-browse claim applies to the human site, not their API (which is the paid/sandboxed one flagged earlier). Automated access to the free tier means scraping. |
+| CarQueryAPI | Vehicle catalog | N/A | **Explicitly excluded** — stopped updating in 2019, live endpoint unreliable. Not referenced anywhere in this codebase. |
+
+**The honest pattern, worth stating plainly**: genuinely unlimited-free at
+API scale only exists where (a) a government/nonprofit funds it outright
+(NHTSA, Wikidata/DBpedia), or (b) you self-host public data instead of
+calling someone's server (the offline WMI table). Every commercial
+aftermarket-parts vendor — even the generous ones like SEMA Data Co-op —
+meters volume or requires credentials somewhere, because hosting fitment
+data costs real money. The three genuinely free-and-automatable sources
+above are integrated; the three browse-only ones are correctly left
+unautomated rather than faked.
+
 ## Not Yet Verified (named leads only, flagged honestly rather than presented as confirmed)
 
 - Motorsport sanctioning body technical/class rules (FIA, SCCA, NASA, Time Attack) — relevant specifically to categorizing "track-only" mods by class legality
